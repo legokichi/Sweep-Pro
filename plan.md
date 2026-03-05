@@ -2,8 +2,8 @@
 
 ## 現時点の確定事項
 - `build.yaml` 準拠条件でローカルビルド成功を再確認済み。
-  - left: `SHIELD=sweep_left` + `SNIPPET=studio-rpc-usb-uart` + `CONFIG_ZMK_STUDIO=y`
-  - right: `SHIELD=sweep_right`
+  - left: `BOARD=nice_nano//zmk` + `SHIELD=sweep_left` + `SNIPPET=studio-rpc-usb-uart` + `CONFIG_ZMK_STUDIO=y`
+  - right: `BOARD=nice_nano//zmk` + `SHIELD=sweep_right`
 - `zmk@main` + `board: nice_nano` で左右とも成功。
 - 現在の CI 失敗は `cirque-input-module` と Zephyr 側 Pinnacle 実装の重複が原因。
   - devicetree binding 重複（`cirque,pinnacle`）
@@ -19,7 +19,7 @@
 - `config/west.yml`
   - `cirque-input-module` の削除は CI 通過のため必須。
 - `build.yaml`
-  - `board: nice_nano_v2` -> `board: nice_nano` は必須。
+  - `board: nice_nano_v2` -> `board: nice_nano//zmk` は必須。
 - `boards/shields/sweep/sweep_left.overlay`
   - `mipi_dbi` 形式への移行は必須。
 - `boards/shields/sweep/sweep_right.overlay`

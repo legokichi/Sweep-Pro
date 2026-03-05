@@ -245,3 +245,20 @@
 - 現時点の結論:
   - ローカル（CI相当）では左右とも成功。
   - GitHub Actions はリポジトリ側で run 生成に失敗しており、CI pass/fail 判定は未取得。
+
+### 2026-03-05 19:20:19 UTC
+- ユーザー実行の CI run を解析:
+  - run: `https://github.com/legokichi/Sweep-Pro/actions/runs/22728726809`
+  - 失敗 step: `Check if building a board without explicit ZMK compat`
+- チェック annotation:
+  - `Missing ZMK Compat`
+  - `The selected board is not set up for ZMK and there is a ZMK variant available.`
+- 原因:
+  - `build.yaml` の `board: nice_nano` は Zephyr 4.1 系の ZMK variant 明示チェックを通らない。
+  - `nice_nano` には `zmk` variant があり、`nice_nano//zmk` 形式で指定する必要がある。
+- 対応:
+  - `build.yaml` の左右エントリを `board: nice_nano//zmk` に変更。
+- ローカル再検証（Docker + CI 相当引数）:
+  - right: `-b nice_nano//zmk -DSHIELD=sweep_right` 成功
+  - left: `-b nice_nano//zmk -DSHIELD=sweep_left -DSNIPPET=studio-rpc-usb-uart -DCONFIG_ZMK_STUDIO=y` 成功
+  - `CONFIG_ZMK_BOARD_COMPAT=y` を左右の `.config` で確認。
