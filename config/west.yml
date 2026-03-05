@@ -18,6 +18,3 @@ manifest:
     - name: zmk-input-processors
       remote: halfdane
       revision: main
-    - name: cirque-input-module
-      remote: halfdane
-      revision: absolute_mode

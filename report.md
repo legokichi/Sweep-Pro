@@ -214,3 +214,20 @@
 - 現在の到達点:
   - `main` 差分（機能変更）は `build.yaml`, `sweep_left/right.overlay`, `config/sweep_left.conf` に集約。
   - `config/west.yml` と `config/sweep.conf` は `main` 同等化済み。
+
+### 2026-03-05 17:15:49 UTC
+- PR CI 失敗の再調査（GitHub Actions run: `22709701323`, `22709699813`）。
+- 失敗要因:
+  - `right` ジョブ: `cirque,pinnacle-i2c.yaml` の `compatible: cirque,pinnacle` 重複定義。
+  - `left` ジョブ: `INPUT_PINNACLE` の Kconfig 重複定義。
+- 判定:
+  - `config/west.yml` の `cirque-input-module` が、現在の Zephyr 側実装と衝突している。
+- 対応:
+  - `config/west.yml` から `cirque-input-module` のみ削除（`zmk-input-processors` は維持）。
+- ローカル再検証（Docker + CI 相当引数）:
+  - `right`: 成功（`.local-zmk/build-cifix-right/zephyr/zmk.uf2`）
+    - `-DSHIELD=sweep_right`
+  - `left`: 成功（`.local-zmk/build-cifix-left/zephyr/zmk.uf2`）
+    - `-DSHIELD=sweep_left -DSNIPPET=studio-rpc-usb-uart -DCONFIG_ZMK_STUDIO=y`
+- 補足:
+  - 左手は `studio-rpc-usb-uart` を `SHIELD` に指定すると失敗するため、`build.yaml` 通り `SNIPPET` 指定で評価。

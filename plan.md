@@ -5,7 +5,9 @@
   - left: `SHIELD=sweep_left` + `SNIPPET=studio-rpc-usb-uart` + `CONFIG_ZMK_STUDIO=y`
   - right: `SHIELD=sweep_right`
 - `zmk@main` + `board: nice_nano` で左右とも成功。
-- `config/west.yml` は `origin/main` 相当（`halfdane` / `cirque-input-module` 含む）でも成功。
+- 現在の CI 失敗は `cirque-input-module` と Zephyr 側 Pinnacle 実装の重複が原因。
+  - devicetree binding 重複（`cirque,pinnacle`）
+  - Kconfig 重複（`INPUT_PINNACLE`）
 - `board: nice_nano_v2` は `zmk@main` でも失敗（`Invalid BOARD`）。
 
 ## main 差分最小の方針
@@ -14,6 +16,8 @@
 3. 判定は `build.yaml` 準拠コマンドのみで行う（非準拠コマンドは補助情報扱い）。
 
 ## 残すべき差分（現時点の候補）
+- `config/west.yml`
+  - `cirque-input-module` の削除は CI 通過のため必須。
 - `build.yaml`
   - `board: nice_nano_v2` -> `board: nice_nano` は必須。
 - `boards/shields/sweep/sweep_left.overlay`
@@ -24,13 +28,10 @@
   - `LV_USE_IMG/LV_USE_PNG` 削除と `CONFIG_ZMK_WIDGET_PERIPHERAL_STATUS=n` は必須。
 
 ## main に戻せる差分（現時点の候補）
-- `config/west.yml`
-  - `origin/main` 相当に戻してもビルド成功。
 - `config/sweep.conf`
   - `CONFIG_WARN_DEPRECATED=n` は不要（削除可）。
 
-## 実行ステップ（完了）
-1. `config/west.yml` と `config/sweep.conf` を `origin/main` 相当に固定。
-2. その状態で `build.yaml` 準拠の左右ビルドを再実行し成功。
-3. `git diff origin/main` で必須差分のみが残る状態を確認。
-4. `report.md` へ検証結果を追記。
+## 実行ステップ（更新）
+1. `config/west.yml` から `cirque-input-module` のみ削除し、他は維持。
+2. `build.yaml` 準拠の左右ビルドを再実行して成功を確認。
+3. 変更を commit/push して PR CI の結果を確認。
