@@ -71,3 +71,146 @@
 ## 補足
 - ローカルでは `BOARD_ROOT` と `KEYMAP_FILE` を明示すると安定して再現しやすい。
 - 右手ビルド時の一部 Kconfig warning（split 側で無効化される設定）は観測されるが、ビルド完了は確認済み。
+
+## 逐次作業ログ（main 差分最小化）
+
+### 2026-03-05 07:50:29 UTC
+- 目的を「`origin/main` 差分の最小化 + ローカル左右ビルド成功」に再設定。
+- 基準状態の再検証を実施（`nice_nano` 固定、現行 `west.yml`/overlay/conf のまま）。
+  - `baseline_right`: 成功（`build-baseline-right/zephyr/zmk.uf2` 生成）
+  - `baseline_left(studio)`: 成功（`build-baseline-left/zephyr/zmk.uf2` 生成）
+- 次ステップ:
+  1. `config/sweep.conf` の `CONFIG_WARN_DEPRECATED=n` を戻して再ビルド
+  2. `config/sweep_left.conf` の差分を戻して再ビルド
+  3. `sweep_right.overlay` / `sweep_left.overlay` を順に戻して必要性を判定
+  4. `build.yaml`/`west.yml` の最小必要差分を再確認
+
+### 2026-03-05 07:52:32 UTC
+- `test1`: `config/sweep.conf` の `CONFIG_WARN_DEPRECATED=n` を削除して再検証。
+- 手順補足:
+  - 初回は `west zephyr-export` 未実行で失敗（手順ミス）。
+  - `zephyr-export` 後に再実行し、評価を確定。
+- 結果:
+  - `right`: 成功
+  - `left(studio)`: 成功
+- 判定:
+  - `CONFIG_WARN_DEPRECATED=n` は **ビルド成立に必須ではない**（差分削減可能）。
+
+### 2026-03-05 07:54:17 UTC
+- `test2`: `config/sweep_left.conf` を `origin/main` 相当に戻して再検証。
+- 結果:
+  - `right`: 成功
+  - `left(studio)`: 失敗
+- 主要エラー:
+  - `LV_USE_IMG` / `LV_USE_PNG` が未定義シンボルとして警告
+  - `error: Aborting due to Kconfig warnings`
+- 判定:
+  - `config/sweep_left.conf` の差分（`LV_USE_IMG/LV_USE_PNG` 削除、`CONFIG_ZMK_WIDGET_PERIPHERAL_STATUS=n`）は **必須**。
+
+### 2026-03-05 07:55:39 UTC
+- `test3`: `sweep_right.overlay` の `data-ready-gpios` を `origin/main` の `dr-gpios` に戻して再検証。
+- 結果:
+  - `right`: 失敗
+  - `left(studio)`: 成功
+- 主要エラー:
+  - `dr-gpios ... is not declared ... cirque,pinnacle-spi.yaml`
+- 判定:
+  - `boards/shields/sweep/sweep_right.overlay` の `data-ready-gpios` 変更は **必須**。
+
+### 2026-03-05 07:57:15 UTC
+- `test4`: `sweep_left.overlay` を `origin/main` 相当に戻して再検証。
+- 結果:
+  - `right`: 成功
+  - `left(studio)`: 失敗
+- 主要エラー:
+  - `ssd16xx.c` コンパイル時に `mipi_max_frequency` 関連で失敗
+  - 旧 overlay 形式（`&spi0` 直下の `display@0` + `spi-max-frequency`）が Zephyr 4.1 構成と不整合
+- 判定:
+  - `boards/shields/sweep/sweep_left.overlay` の `mipi_dbi` 形式への変更は **必須**。
+
+### 2026-03-05 07:58:01 UTC
+- `test5`: board 指定を `nice_nano_v2` として左右を再検証（`zmk` は `c06fa48...` pin のまま）。
+- 結果:
+  - `right`: 失敗
+  - `left(studio)`: 失敗
+- 主要エラー:
+  - `Invalid BOARD`
+  - `No board named 'nice_nano_v2' found.`
+- 判定:
+  - 現行 pin 構成では `build.yaml` の board は `nice_nano` が **必須**（`nice_nano_v2` は不可）。
+
+### 2026-03-05 07:59:40 UTC
+- `test6`: `config/west.yml` の `zmk` revision を `main` に戻し、board は `nice_nano` のまま再検証。
+- 結果:
+  - `right`: 成功
+  - `left(studio)`: 成功
+- 判定:
+  - 現時点では `zmk` pin（`c06fa48...`）は **必須ではない**。
+  - `config/west.yml` は `main` 追従へ寄せて差分削減可能。
+
+### 2026-03-05 08:01:10 UTC
+- `test7`: `zmk` を `main` のまま board を `nice_nano_v2` へ変更して再検証。
+- 結果:
+  - `right`: 失敗
+  - `left(studio)`: 失敗
+- 主要エラー:
+  - `Invalid BOARD`
+  - `No board named 'nice_nano_v2' found.`
+- 判定:
+  - `zmk main` でも `nice_nano_v2` はこの構成で利用不可。`build.yaml` は `nice_nano` 維持が必要。
+
+### 2026-03-05 08:03:20 UTC
+- `test8`: `config/west.yml` を `origin/main` 相当（`halfdane` + `cirque-input-module` 含む）にして再検証。
+- 実行時注意:
+  - `-DSHIELD=\"sweep_left nice_view_adapter nice_view\"` で試すと `undefined node label 'nice_view_spi'` で失敗。
+  - これは `build.yaml` 非準拠の手動条件。
+- 判定:
+  - この失敗は CI 条件の代替にならないため、以後は `build.yaml` 準拠コマンドで評価する。
+
+### 2026-03-05 08:05:45 UTC
+- `test9`: `cirque-input-module` を一度除去し、`build.yaml` 準拠コマンドで再評価。
+  - 左手: `-DSHIELD=sweep_left -DSNIPPET=studio-rpc-usb-uart -DCONFIG_ZMK_STUDIO=y`
+  - 右手: `-DSHIELD=sweep_right`
+- 結果:
+  - `left (CI相当)`: 成功
+  - `right`: 成功
+- 判定:
+  - CI 準拠ではビルド成功。
+
+### 2026-03-05 08:07:33 UTC
+- `test10`: `cirque-input-module` を再追加し、`config/west.yml` を再び `origin/main` 相当へ戻して `build.yaml` 準拠で最終確認。
+- 結果:
+  - `left (CI相当)`: 成功（`build-ci-test10-left/zephyr/zmk.uf2`）
+  - `right`: 成功（`build-ci-test10-right/zephyr/zmk.uf2`）
+- 判定:
+  - `config/west.yml` の `halfdane`/`cirque-input-module` 削除は **必須ではない**。
+  - `west.yml` は `origin/main` と同等に維持可能。
+
+### 2026-03-05 08:08:56 UTC
+- `plan.md` を更新し、`build.yaml` 準拠で判定する方針を明文化。
+- `origin/main` との差分確認:
+  - 依然として必須候補は `build.yaml`, `sweep_left/right.overlay`, `config/sweep_left.conf`。
+  - `config/west.yml` と `config/sweep.conf` は `origin/main` 相当に戻せることを確認済み。
+
+### 2026-03-05 08:29:00 UTC
+- `config/west.yml` と `config/sweep.conf` を `origin/main` 相当に戻した状態で最終再検証。
+- 実施:
+  - 右手: `build-final-right` (`-DSHIELD=sweep_right`)
+  - 左手(CI相当): `build-final-left` (`-DSHIELD=sweep_left -DSNIPPET=studio-rpc-usb-uart -DCONFIG_ZMK_STUDIO=y`)
+- 結果:
+  - `right`: 成功（`build-final-right/zephyr/zmk.uf2`）
+  - `left (CI相当)`: 成功（`build-final-left/zephyr/zmk.uf2`）
+- 判定:
+  - `config/west.yml` / `config/sweep.conf` のブランチ独自変更は不要。
+  - `main` 差分最小化の観点で、必須候補は `build.yaml`, `sweep_left.overlay`, `sweep_right.overlay`, `config/sweep_left.conf` に収束。
+
+### 2026-03-05 08:29:59 UTC
+- 差分最小化のため、ビルド非本質な `orig.l/*` と `orig.r/*`（UF2/INDEX/INFO）を Git 追跡から削除。
+- 目的:
+  - `origin/main` との差分からローカル検証用生成物を除外し、PR差分を機能変更に限定する。
+
+### 2026-03-05 08:30:55 UTC
+- `plan.md` を完了状態へ更新。
+- 現在の到達点:
+  - `main` 差分（機能変更）は `build.yaml`, `sweep_left/right.overlay`, `config/sweep_left.conf` に集約。
+  - `config/west.yml` と `config/sweep.conf` は `main` 同等化済み。
