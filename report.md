@@ -231,3 +231,17 @@
     - `-DSHIELD=sweep_left -DSNIPPET=studio-rpc-usb-uart -DCONFIG_ZMK_STUDIO=y`
 - 補足:
   - 左手は `studio-rpc-usb-uart` を `SHIELD` に指定すると失敗するため、`build.yaml` 通り `SNIPPET` 指定で評価。
+
+### 2026-03-05 17:25:33 UTC
+- 変更を commit/push:
+  - commit: `4f09ae8` (`fix(ci): drop cirque-input-module to resolve pinnacle conflicts`)
+  - branch: `fix/zephyr41-local-build-no-keymap`
+- CI 監視結果:
+  - GitHub 側で push event は受理（`2026-03-05T17:16:46Z`）。
+  - しかし `head_sha=4f09ae8...` の check suite / workflow run が生成されず、`gh run list` でも新規 run が出現しない状態。
+- 手動起動試行:
+  - `gh workflow run build.yml --ref fix/zephyr41-local-build-no-keymap` を2回実行。
+  - いずれも `HTTP 500: Failed to run workflow dispatch` で失敗。
+- 現時点の結論:
+  - ローカル（CI相当）では左右とも成功。
+  - GitHub Actions はリポジトリ側で run 生成に失敗しており、CI pass/fail 判定は未取得。
